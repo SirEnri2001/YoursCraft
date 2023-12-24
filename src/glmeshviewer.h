@@ -12,6 +12,7 @@
 #include "camera.h"
 #include "shader.h"
 #include "drawable.h"
+#include "objmodel.h"
 
 class Viewer
 {
@@ -41,7 +42,9 @@ protected:
 	virtual void createGridGround();
 	virtual void drawGridGround(const glm::mat4& projViewModel);
 
-	ImVec4 clearColor = ImVec4(0.2f, 0.2f, 0.2f, 1.00f);
+	bool show_demo_window = true;
+	bool show_another_window = false;
+	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 	GLFWwindow* window;
 
 	// Some shaders
@@ -52,6 +55,7 @@ protected:
 
 	// Some drawables
 	std::unique_ptr<Drawable> mGridGround;
+	std::unique_ptr<ObjModel> mObjModel;
 
 
 	// Screen size, update in each frame

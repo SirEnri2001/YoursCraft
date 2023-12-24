@@ -9,24 +9,21 @@ static void glfw_error_callback(int error, const char* description)
 // Copy from ImGUI/examples/example_glfw_opengl3
 Viewer::Viewer(const std::string& name) :
 	windowWidth(1920), windowHeight(1080),
+	mCamera(windowWidth, windowHeight, glm::vec3(0, 0, 1000), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0))
 	//changed camerea position value to (0, 500, 800) from (0, 100, 500)
-	mCamera(windowWidth, windowHeight, glm::vec3(0, 500, 800), glm::vec3(0, 100, 0), glm::vec3(0, 1, 0)),
-	mLightPos(glm::vec3(200, 600, 400)),
-	mHoldLeftButton(false),
-	mHoldMidButton(false),
-	mHoldRightButton(false),
-	mHoldLCtrl(false)
 {
-	// Setup window
 	glfwSetErrorCallback(glfw_error_callback);
 	if (!glfwInit())
-	{
-		std::cerr << "Failed to init glfw" << std::endl;
 		return;
-	}
 
 	// Decide GL+GLSL versions
-#if __APPLE__
+#if defined(IMGUI_IMPL_OPENGL_ES2)
+	// GL ES 2.0 + GLSL 100
+	const char* glsl_version = "#version 100";
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+#elif defined(__APPLE__)
 	// GL 3.2 + GLSL 150
 	const char* glsl_version = "#version 150";
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -34,21 +31,18 @@ Viewer::Viewer(const std::string& name) :
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // Required on Mac
 #else
-	// GL 4.6 + GLSL 130
+	// GL 3.0 + GLSL 130
 	const char* glsl_version = "#version 130";
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+	//glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
 	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 #endif
 
 	// Create window with graphics context
-	window = glfwCreateWindow(windowWidth, windowHeight, name.c_str(), NULL, NULL);
-	if (window == NULL)
-	{
-		std::cerr << "Failed to create a window" << std::endl;
+	window = glfwCreateWindow(windowWidth, windowHeight, "Dear ImGui GLFW+OpenGL3 example", nullptr, nullptr);
+	if (window == nullptr)
 		return;
-	}
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1); // Enable vsync
 
@@ -77,14 +71,14 @@ Viewer::Viewer(const std::string& name) :
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
 	// Setup Dear ImGui style
 	ImGui::StyleColorsDark();
-	//ImGui::StyleColorsClassic();
+	//ImGui::StyleColorsLight();
 
-	// Setup Platform/Renderer bindings
+	// Setup Platform/Renderer backends
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
@@ -96,7 +90,7 @@ Viewer::Viewer(const std::string& name) :
 	// - Read 'docs/FONTS.md' for more instructions and details.
 	// - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
 	io.Fonts->AddFontDefault();
-	io.FontGlobalScale = 1.25f;
+	io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf", 18.0f);
 	//io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
 	//io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
 	//io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
@@ -105,15 +99,16 @@ Viewer::Viewer(const std::string& name) :
 	//IM_ASSERT(font != NULL);
 
 	/* Our initializaton */
-	setCallbacks();
+	//setCallbacks();
 
-	mPointShader = std::make_unique<Shader>("../shader/point.vert.glsl", "../shader/point.frag.glsl");
-	mCurveShader = std::make_unique<Shader>("../shader/curve.vert.glsl", "../shader/curve.frag.glsl",
+	mPointShader = std::make_unique<Shader>("../glsl/point.vert.glsl", "../glsl/point.frag.glsl");
+	mCurveShader = std::make_unique<Shader>("../glsl/curve.vert.glsl", "../glsl/curve.frag.glsl",
 		"../shader/curve.geom.glsl");
-	mModelShader = std::make_unique<Shader>("../shader/model.vert.glsl", "../shader/model.frag.glsl");
-	mGridShader = std::make_unique<Shader>("../shader/grid.vert.glsl", "../shader/grid.frag.glsl");
+	mModelShader = std::make_unique<Shader>("../glsl/model.vert.glsl", "../glsl/model.frag.glsl");
+	mGridShader = std::make_unique<Shader>("../glsl/grid.vert.glsl", "../glsl/grid.frag.glsl");
 	createGridGround();
-
+	mObjModel = std::make_unique<ObjModel>();
+	mObjModel->loadObj("../obj/cow.obj");
 }
 
 Viewer::~Viewer()
@@ -129,78 +124,115 @@ Viewer::~Viewer()
 
 void Viewer::mainLoop()
 {
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
 	// Main loop
+#ifdef __EMSCRIPTEN__
+	// For an Emscripten build we are disabling file-system access, so let's not attempt to do a fopen() of the imgui.ini file.
+	// You may manually call LoadIniSettingsFromMemory() to load settings from your own storage.
+	io.IniFilename = nullptr;
+	EMSCRIPTEN_MAINLOOP_BEGIN
+#else
 	while (!glfwWindowShouldClose(window))
+#endif
 	{
+		// Poll and handle events (inputs, window resize, etc.)
+		// You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
+		// - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
+		// - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
+		// Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
+		glfwPollEvents();
+
 		// Start the Dear ImGui frame
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-		// Create the GUI window
-		createGUIWindow();
+		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+		if (show_demo_window)
+			ImGui::ShowDemoWindow(&show_demo_window);
+
+		// 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
+		{
+			static float f = 0.0f;
+			static int counter = 0;
+
+			ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+			ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+			ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+			ImGui::Checkbox("Another Window", &show_another_window);
+
+			ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+			ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+
+			if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+				counter++;
+			ImGui::SameLine();
+			ImGui::Text("counter = %d", counter);
+
+			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+			ImGui::End();
+		}
+		if (!io.WantCaptureMouse && ImGui::IsMouseDown(1)) {
+			mCamera.PolarRotateAboutX(-io.MouseDelta.y/ windowHeight*1000.f);
+			mCamera.PolarRotateAboutY(-io.MouseDelta.x/ windowWidth*1000.f);
+		}
+		else if (!io.WantCaptureMouse && io.MouseWheel != 0.0f) {
+			mCamera.PolarZoom(io.MouseWheel * 300);
+		}
+		// 3. Show another simple window.
+		if (show_another_window)
+		{
+			ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+			ImGui::Text("Hello from another window!");
+			if (ImGui::Button("Close Me"))
+				show_another_window = false;
+			ImGui::End();
+		}
 
 		// Rendering
 		ImGui::Render();
-		glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
-		glViewport(0, 0, windowWidth, windowHeight);
-		glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+		int display_w, display_h;
+		glfwGetFramebufferSize(window, &display_w, &display_h);
+		glViewport(0, 0, display_w, display_h);
+		glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_CULL_FACE);
 		drawScene();
-		// Draw gui
+
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		glfwSwapBuffers(window);
-		glfwPollEvents();
 	}
+#ifdef __EMSCRIPTEN__
+	EMSCRIPTEN_MAINLOOP_END;
+#endif
+	return;
 }
 
 void Viewer::createGUIWindow()
 {
-	// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-	if (showDemoWindow)
-		ImGui::ShowDemoWindow(&showDemoWindow);
-
-	// 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
-	{
-		static float f = 0.0f;
-		static int counter = 0;
-
-		ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-		ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-		ImGui::Checkbox("Demo Window", &showDemoWindow);      // Edit bools storing our window open/close state
-		ImGui::Checkbox("Another Window", &showAnotherWindow);
-
-		ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-		ImGui::ColorEdit3("clear color", (float*)&clearColor); // Edit 3 floats representing a color
-
-		if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-			counter++;
-		ImGui::SameLine();
-		ImGui::Text("counter = %d", counter);
-
-		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-		ImGui::End();
-	}
-
-	// 3. Show another simple window.
-	if (showAnotherWindow)
-	{
-		ImGui::Begin("Another Window", &showAnotherWindow);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-		ImGui::Text("Hello from another window!");
-		if (ImGui::Button("Close Me"))
-			showAnotherWindow = false;
-		ImGui::End();
-	}
+	
 }
 
 void Viewer::drawScene()
 {
-	glm::mat4 model = glm::mat4(1.0f);
+	glm::mat4 model = glm::scale(glm::mat4(1.0f), glm::vec3(50));
 	glm::mat4 projView = mCamera.getProjView();
-	drawGridGround(projView * model);
+	drawGridGround(projView);
+	mModelShader->use();
+	mModelShader->setMat4("uProjView", projView);
+	mModelShader->setVec3("uLightPos", mCamera.eye);
+	mModelShader->setVec3("color", glm::vec3(0.8, 0.7, 0.6));
+	mModelShader->setMat4("uModel", model);
+	mModelShader->setMat3("uModelInvTr", glm::inverse(model));
+
+	mObjModel->drawObj();
 }
 
 void Viewer::setCallbacks()

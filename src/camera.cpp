@@ -6,7 +6,7 @@ Camera::Camera(unsigned int w, unsigned int h, const glm::vec3 &e, const glm::ve
 	width(w),
 	height(h),
 	near_clip(1.0f),
-	far_clip(4000),
+	far_clip(50000),
 	eye(e),
 	ref(r),
 	world_up(worldUp),
@@ -30,6 +30,8 @@ Camera::Camera(unsigned int w, unsigned int h, const glm::vec3 &e, const glm::ve
 	upOrigin = up;
 	rightOrigin = right;
 	refOrigin = ref;
+	phi = -30;
+	PolarRecomputeAttributes();
 }
 
 
@@ -57,8 +59,8 @@ glm::vec3 Camera::getEye()
 void Camera::PolarRotateAboutX(float deg)
 {
 	phi += deg;
-	phi = std::fmax(phi, -85);
-	phi = std::fmin(0, phi);
+	phi = std::fmax(phi, -89.9);
+	phi = std::fmin(89.9, phi);
 
 	PolarRecomputeAttributes();
 }
@@ -71,7 +73,7 @@ void Camera::PolarRotateAboutY(float deg)
 
 void Camera::PolarZoom(float amt)
 {
-	if ((zoom + amt) > (glm::length(eye - ref) - 200.0f))
+	if ((zoom + amt) > (glm::length(eye - ref)))
 	{
 		return;
 	}

@@ -66,6 +66,8 @@ add_executable(GLMeshViewer
     ./src/shader.cpp
     ./src/drawable.h
     ./src/drawable.cpp
+    ./src/objmodel.cpp
+    ./src/objmodel.h
 
 )
 
